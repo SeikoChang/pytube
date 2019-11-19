@@ -119,13 +119,14 @@ class YouTube(object):
 
             # Fix for KeyError: 'title' issue #434
             if 'title' not in self.player_config_args:
-                i_start = (
-                    self.watch_html
-                    .lower()
-                    .index('<title>') + len('<title>')
-                )
-                i_end = self.watch_html.lower().index('</title>')
-                title = self.watch_html[i_start:i_end].strip()
+                try:
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(self.watch_html, 'lxml')
+                    title = soup.title.get_text().strip()
+                except ModuleNotFoundError:
+                    i_start = self.watch_html.lower().index('<title>') + len('<title>')
+                    i_end = self.watch_html.lower().index('</title>')
+                    title = self.watch_html[i_start:i_end].strip()
                 index = title.lower().rfind(' - youtube')
                 title = title[:index] if index > 0 else title
                 self.player_config_args['title'] = title
@@ -255,7 +256,14 @@ class YouTube(object):
         :rtype: str
 
         """
-        return self.player_config_args['thumbnail_url']
+        return (
+            self.player_config_args
+            .get('player_response', {})
+            .get('videoDetails', {})
+            .get('thumbnail', {})
+            .get('thumbnails', [])[0]
+            .get('url')
+        )
 
     @property
     def title(self):
@@ -264,7 +272,12 @@ class YouTube(object):
         :rtype: str
 
         """
-        return self.player_config_args['title']
+        return (
+            self.player_config_args
+            .get('player_response', {})
+            .get('videoDetails', {})
+            .get('title')
+        )
 
     @property
     def description(self):
@@ -296,7 +309,12 @@ class YouTube(object):
         :rtype: str
 
         """
-        return self.player_config_args['length_seconds']
+        return (
+            self.player_config_args
+            .get('player_response', {})
+            .get('videoDetails', {})
+            .get('lengthSeconds')
+        )
 
     @property
     def views(self):

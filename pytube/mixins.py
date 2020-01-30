@@ -37,11 +37,14 @@ def apply_signature(config_args, fmt, js):
             url = stream['url']
         elif live_stream:
             raise LiveStreamError('Video is currently being streamed live')
-
-        #403 Forbidden fix. 
-        if('signature' in url or 
-            ('s' not in stream and 
-            ('&sig=' in url or '&lsig=' in url))):
+        # 403 Forbidden fix.
+        if (
+            'signature' in url or (
+                's' not in stream and (
+                    '&sig=' in url or '&lsig=' in url
+                )
+            )
+        ):
             # For certain videos, YouTube will just provide them pre-signed, in
             # which case there's no real magic to download them and we can skip
             # the whole signature descrambling entirely.
@@ -64,7 +67,7 @@ def apply_signature(config_args, fmt, js):
                 }, indent=2,
             ),
         )
-        #403 forbidden fix
+        # 403 forbidden fix
         stream_manifest[i]['url'] = url + '&sig=' + signature
 
 
@@ -88,11 +91,20 @@ def apply_descrambler(stream_data, key):
     {'foo': [{'bar': '1', 'var': 'test'}, {'em': '5', 't': 'url encoded'}]}
 
     """
-    stream_data[key] = [
-        {k: unquote(v) for k, v in parse_qsl(i)}
-        for i in stream_data[key].split(',')
-    ]
+if key == 'url_encoded_fmt_stream_map' and not stream_data.get('url_encoded_fmt_stream_map'):
+        formats = json.loads(stream_data['player_response'])['streamingData']['formats']
+        formats.extend(json.loads(stream_data['player_response'])['streamingData']['adaptiveFormats'])
+        stream_data[key] = [{u'url': format_item[u'url'],
+                             u'type': format_item[u'mimeType'],
+                             u'quality': format_item[u'quality'],
+                             u'itag': format_item[u'itag']} for format_item in formats]
+    else:
+        stream_data[key] = [
+            {k: unquote(v) for k, v in parse_qsl(i)}
+            for i in stream_data[key].split(',')
+        ]
     logger.debug(
         'applying descrambler\n%s',
         pprint.pformat(stream_data[key], indent=2),
     )
+
